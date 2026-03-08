@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wing Rush</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+  canvas { display:block; }
+  #ui {
+    position:fixed; inset:0; pointer-events:none;
+    font-family:'Nunito',sans-serif;
+  }
+
+  /* Score */
+  #scoreBox {
+    position:absolute; top:18px; left:50%; transform:translateX(-50%);
+    text-align:center; pointer-events:none;
+  }
+  #scoreNum {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(2.5rem,8vw,4rem);
+    color:#fff;
+    text-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 0 20px rgba(255,255,255,0.3);
+    line-height:1;
+  }
+  #birdLabel {
+    font-size:clamp(0.7rem,2.5vw,0.9rem);
+    color:rgba(255,255,255,0.85);
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    text-shadow:0 1px 4px rgba(0,0,0,0.5);
+    margin-top:2px;
+  }
+
+  /* Near miss */
+  #nearMiss {
+    position:absolute; top:30%; left:50%; transform:translateX(-50%);
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1.4rem,5vw,2.2rem);
+    color:#FFD700;
+    text-shadow:0 0 20px rgba(255,215,0,0.8), 0 2px 0 rgba(0,0,0,0.4);
+    opacity:0; pointer-events:none;
+    transition:opacity 0.15s;
+    white-space:nowrap;
+  }
+
+  /* Bird unlock banner */
+  #unlockBanner {
+    position:absolute; top:18%; left:50%; transform:translateX(-50%) translateY(-20px);
+    background:rgba(0,0,0,0.75);
+    border:2px solid rgba(255,255,255,0.3);
+    border-radius:60px;
+    padding:10px 28px;
+    text-align:center;
+    opacity:0;
+    pointer-events:none;
+    backdrop-filter:blur(6px);
+    transition:opacity 0.3s, transform 0.3s;
+    white-space:nowrap;
+  }
+  #unlockBanner.show {
+    opacity:1; transform:translateX(-50%) translateY(0);
+  }
+  #unlockEmoji { font-size:clamp(1.4rem,4vw,1.8rem); }
+  #unlockText {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(0.85rem,3vw,1.1rem);
+    color:#fff;
+    letter-spacing:0.05em;
+  }
+
+  /* Combo */
+  #combo {
+    position:absolute; bottom:22%; right:16px;
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1rem,3.5vw,1.4rem);
+    color:#FF6B6B;
+    text-shadow:0 0 12px rgba(255,107,107,0.7);
+    opacity:0; pointer-events:none;
+    text-align:right;
+    transition:opacity 0.3s;
+  }
+
+  /* Loop banner */
+  #loopBanner {
+    position:absolute; top:40%; left:50%; transform:translateX(-50%);
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1.6rem,6vw,2.8rem);
+    color:#FF6B35;
+    text-shadow:0 0 30px rgba(255,107,53,0.8), 0 3px 0 rgba(0,0,0,0.4);
+    opacity:0; pointer-events:none;
+    text-align:center;
+    transition:opacity 0.3s;
+    white-space:nowrap;
+  }
+
+  /* START SCREEN */
+  #startScreen {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(10px,2.5vh,20px);
+    background:rgba(0,0,0,0.35);
+    backdrop-filter:blur(2px);
+    pointer-events:all;
+  }
+  #startTitle {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(2.8rem,12vw,5.5rem);
+    color:#fff;
+    text-shadow:0 4px 0 rgba(0,0,0,0.4), 0 0 40px rgba(255,200,100,0.5);
+    text-align:center;
+    line-height:1;
+  }
+  #startSub {
+    font-size:clamp(0.75rem,2.5vw,1rem);
+    color:rgba(255,255,255,0.8);
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    text-align:center;
+  }
+  .tap-btn {
+    margin-top:8px;
+    background:linear-gradient(135deg,#FF6B35,#FF3D7F);
+    border:none; border-radius:60px;
+    padding:clamp(12px,2.5vh,18px) clamp(32px,8vw,60px);
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1.1rem,4vw,1.6rem);
+    color:#fff;
+    cursor:pointer;
+    box-shadow:0 6px 0 rgba(0,0,0,0.3), 0 0 30px rgba(255,107,53,0.4);
+    transition:transform 0.1s, box-shadow 0.1s;
+    pointer-events:all;
+    letter-spacing:0.05em;
+  }
+  .tap-btn:active { transform:translateY(3px); box-shadow:0 3px 0 rgba(0,0,0,0.3); }
+
+  #bestScore {
+    font-size:clamp(0.75rem,2.5vw,0.95rem);
+    color:rgba(255,255,255,0.75);
+    letter-spacing:0.1em;
+  }
+
+  /* GAME OVER */
+  #gameOverScreen {
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(8px,2vh,16px);
+    background:rgba(0,0,0,0.5);
+    backdrop-filter:blur(4px);
+    pointer-events:all;
+  }
+  #gameOverScreen.show { display:flex; }
+  #goTitle {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(2.2rem,10vw,4.5rem);
+    color:#FF3D7F;
+    text-shadow:0 4px 0 rgba(0,0,0,0.4), 0 0 30px rgba(255,61,127,0.5);
+    text-align:center;
+  }
+  .go-card {
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:20px;
+    padding:clamp(10px,2vh,18px) clamp(24px,6vw,40px);
+    text-align:center;
+    backdrop-filter:blur(8px);
+    min-width:clamp(180px,60vw,280px);
+  }
+  .go-label {
+    font-size:clamp(0.6rem,2vw,0.75rem);
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:rgba(255,255,255,0.6);
+    margin-bottom:4px;
+  }
+  .go-val {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1.8rem,7vw,3rem);
+    color:#fff;
+    line-height:1;
+  }
+  .go-val.gold { color:#FFD700; text-shadow:0 0 20px rgba(255,215,0,0.5); }
+  .go-btns { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+
+  /* LEADERBOARD */
+  #lbScreen {
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center;
+    background:rgba(0,0,0,0.88);
+    backdrop-filter:blur(8px);
+    pointer-events:all;
+    overflow-y:auto;
+    padding:clamp(16px,4vh,32px) 16px;
+    gap:10px;
+  }
+  #lbScreen.show { display:flex; }
+  #lbTitle {
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(1.6rem,6vw,2.5rem);
+    color:#FFD700;
+    text-shadow:0 0 20px rgba(255,215,0,0.5);
+    text-align:center;
+  }
+  #lbList {
+    width:100%; max-width:400px;
+    display:flex; flex-direction:column; gap:8px;
+    list-style:none;
+  }
+  .lb-row {
+    display:flex; align-items:center; gap:10px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:14px;
+    padding:10px 16px;
+  }
+  .lb-row.me { border-color:rgba(255,215,0,0.5); background:rgba(255,215,0,0.08); }
+  .lb-rank {
+    font-family:'Fredoka One',cursive;
+    font-size:1.2rem; min-width:32px;
+    color:rgba(255,255,255,0.5);
+  }
+  .lb-rank.g { color:#FFD700; }
+  .lb-rank.s { color:#C0C0C0; }
+  .lb-rank.b { color:#CD7F32; }
+  .lb-name { flex:1; font-size:0.9rem; color:#fff; font-weight:700; }
+  .lb-bird { font-size:1.1rem; }
+  .lb-score {
+    font-family:'Fredoka One',cursive;
+    font-size:1.3rem; color:#4ECDC4;
+  }
+  .lb-empty {
+    text-align:center; color:rgba(255,255,255,0.4);
+    font-size:0.85rem; padding:20px; letter-spacing:0.1em;
+  }
+
+  /* Name input overlay */
+  #nameOverlay {
+    position:absolute; inset:0;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.7); backdrop-filter:blur(8px);
+    pointer-events:all; z-index:100;
+  }
+  #nameOverlay.show { display:flex; }
+  .name-card {
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25);
+    border-radius:24px;
+    padding:28px 32px;
+    display:flex; flex-direction:column; gap:14px;
+    align-items:center; max-width:320px; width:90%;
+  }
+  .name-title {
+    font-family:'Fredoka One',cursive;
+    font-size:1.5rem; color:#fff; text-align:center;
+  }
+  .name-input {
+    width:100%; padding:12px 18px;
+    background:rgba(255,255,255,0.15);
+    border:1.5px solid rgba(255,255,255,0.3);
+    border-radius:60px;
+    font-family:'Nunito',sans-serif; font-size:1rem; font-weight:700;
+    color:#fff; outline:none; text-align:center;
+    transition:border-color 0.2s;
+    user-select:text; -webkit-user-select:text; cursor:text;
+  }
+  .name-input::placeholder { color:rgba(255,255,255,0.4); }
+  .name-input:focus { border-color:#FFD700; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <!-- HUD -->
+  <div id="scoreBox">
+    <div id="scoreNum">0</div>
+    <div id="birdLabel">🐣 Baby Chick</div>
+  </div>
+  <div id="nearMiss">⚡ CLOSE!</div>
+  <div id="unlockBanner">
+    <div id="unlockEmoji">🐦</div>
+    <div id="unlockText">New Bird Unlocked!</div>
+  </div>
+  <div id="combo">🔥 x0 Combo!</div>
+  <div id="loopBanner">🌀 LOOP 2 — FASTER!</div>
+
+  <!-- START -->
+  <div id="startScreen">
+    <div id="startTitle">🐣 Wing Rush</div>
+    <div id="startSub">Tap to flap • Dodge everything • Survive</div>
+    <div id="bestScore">Best: 0</div>
+    <button class="tap-btn" id="startBtn">▶ Play Now</button>
+    <button class="tap-btn" style="background:linear-gradient(135deg,#FFD700,#FF8C00);margin-top:-4px;font-size:clamp(0.85rem,3vw,1.1rem);padding:10px 30px;" onclick="showLb()">🏆 Leaderboard</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameOverScreen">
+    <div id="goTitle">💥 Game Over</div>
+    <div class="go-card">
+      <div class="go-label">Score</div>
+      <div class="go-val" id="goScore">0</div>
+    </div>
+    <div class="go-card">
+      <div class="go-label">Best Score</div>
+      <div class="go-val gold" id="goBest">0</div>
+    </div>
+    <div class="go-card" style="padding:8px 20px;">
+      <div class="go-label">Bird Reached</div>
+      <div style="font-size:1.8rem;" id="goBird">🐣</div>
+    </div>
+    <div class="go-btns">
+      <button class="tap-btn" style="font-size:1rem;padding:12px 28px;" id="retryBtn">↩ Retry</button>
+      <button class="tap-btn" style="font-size:1rem;padding:12px 28px;background:linear-gradient(135deg,#FFD700,#FF8C00);" onclick="showLb()">🏆 Board</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="lbScreen">
+    <div id="lbTitle">🏆 World Leaderboard</div>
+    <div style="font-size:0.7rem;letter-spacing:0.15em;color:rgba(255,255,255,0.4);text-transform:uppercase;margin-top:-4px;">Top players worldwide</div>
+    <ul id="lbList"></ul>
+    <button class="tap-btn" style="font-size:1rem;padding:12px 32px;margin-top:8px;" onclick="hideLb()">← Back</button>
+  </div>
+
+  <!-- NAME INPUT -->
+  <div id="nameOverlay">
+    <div class="name-card">
+      <div class="name-title">🌍 Enter Your Name</div>
+      <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:0.1em;text-align:center;">Your score will appear on the global leaderboard</div>
+      <input class="name-input" id="nameInput" type="text" maxlength="16" placeholder="Your name…" />
+      <button class="tap-btn" style="font-size:1rem;padding:12px 36px;width:100%;" id="nameSubmitBtn">Save & Play →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  WING RUSH — Full Game Engine
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+// ── Resize ──────────────────────────────────────────────────
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); if (!running) drawBg(); });
+
+// ── Birds ────────────────────────────────────────────────────
+const BIRDS = [
+  { score:0,  emoji:'🐣', name:'Baby Chick',   gravity:0.32, flapPow:-6.5,  size:1.0, trail:null },
+  { score:10, emoji:'🐦', name:'Sparrow',       gravity:0.36, flapPow:-7.0,  size:1.0, trail:'rgba(180,220,255,0.4)' },
+  { score:20, emoji:'🦜', name:'Parrot',         gravity:0.38, flapPow:-7.2,  size:1.05,trail:'rgba(255,120,50,0.5)' },
+  { score:30, emoji:'🦩', name:'Flamingo',       gravity:0.30, flapPow:-6.8,  size:1.1, trail:'rgba(255,180,220,0.5)' },
+  { score:40, emoji:'🦉', name:'Owl',            gravity:0.34, flapPow:-7.5,  size:1.05,trail:'rgba(120,180,255,0.4)' },
+  { score:50, emoji:'🦅', name:'Eagle',          gravity:0.42, flapPow:-8.0,  size:1.15,trail:'rgba(255,200,50,0.4)' },
+  { score:60, emoji:'🦇', name:'Bat',            gravity:0.38, flapPow:-7.8,  size:1.0, trail:'rgba(180,100,255,0.5)' },
+  { score:70, emoji:'🔥', name:'Phoenix',        gravity:0.40, flapPow:-8.2,  size:1.1, trail:'rgba(255,80,20,0.6)' },
+  { score:80, emoji:'⚡', name:'Thunder Bird',   gravity:0.44, flapPow:-8.5,  size:1.1, trail:'rgba(255,240,50,0.6)' },
+  { score:90, emoji:'👑', name:'Golden Bird',    gravity:0.40, flapPow:-8.0,  size:1.15,trail:'rgba(255,215,0,0.7)' },
+];
+
+// ── Obstacles ────────────────────────────────────────────────
+const OBSTACLES = [
+  { score:0,  type:'grass',      label:'🌿 Grass Blades',    color:'#4a9e3f', accent:'#6dcf62' },
+  { score:10, type:'rocks',      label:'🪨 Floating Rocks',  color:'#7a6f65', accent:'#a09488' },
+  { score:20, type:'vines',      label:'🌴 Jungle Vines',    color:'#3d7a35', accent:'#5cb84f' },
+  { score:30, type:'water',      label:'🌊 Water Spouts',    color:'#2a7aaf', accent:'#4db0e8' },
+  { score:40, type:'buildings',  label:'🏚️ Broken Walls',   color:'#5a5560', accent:'#7a7080' },
+  { score:50, type:'mountains',  label:'⛰️ Mountain Peaks',  color:'#6a5040', accent:'#9a7060' },
+  { score:60, type:'stalactites',label:'🦷 Cave Spikes',     color:'#8a8090', accent:'#b0a8b8' },
+  { score:70, type:'fire',       label:'🔥 Fire Pillars',    color:'#cc3300', accent:'#ff6622' },
+  { score:80, type:'pylons',     label:'⚡ Electric Pylons', color:'#3a3a5a', accent:'#6688ff' },
+  { score:90, type:'crystals',   label:'💎 Crystal Spires',  color:'#4488aa', accent:'#88ddff' },
+];
+
+// ── Sky themes per time of day ───────────────────────────────
+const SKY_THEMES = [
+  { name:'Dawn',   top:'#FF6B6B', mid:'#FFB347', bot:'#FFD580', ground:'#5a8a3a', star:false },
+  { name:'Day',    top:'#87CEEB', mid:'#b8e4f9', bot:'#d4f0ff', ground:'#4a9a2a', star:false },
+  { name:'Dusk',   top:'#2C1654', mid:'#8B3A8A', bot:'#FF6347', ground:'#3a5a1a', star:false },
+  { name:'Night',  top:'#0a0a2e', mid:'#0d1a4a', bot:'#1a2a5a', ground:'#1a3a0a', star:true  },
+];
+
+// ── Game State ───────────────────────────────────────────────
+let W, H, running = false, started = false, dead = false;
+let score = 0, bestScore = 0, loop = 1, comboCount = 0;
+let birdIdx = 0, obstacleIdx = 0, skyIdx = 0, skyT = 0;
+let currentMusicTheme = -1;
+let playerName = '';
+let flapAngle = 0, flapWing = 0;
+
+// Bird physics
+let bx, by, bvy, bvx = 0;
+const BIRD_X_RATIO = 0.22;
+
+// Obstacles array
+let obstacles = [];
+let obSpawnTimer = 0;
+
+// Particles
+let particles = [];
+let stars = [];
+
+// Trail
+let trailPoints = [];
+
+// Near miss
+let nearMissTimer = 0;
+let comboTimer = 0;
+
+// ── DOM refs ─────────────────────────────────────────────────
+const scoreNumEl   = document.getElementById('scoreNum');
+const birdLabelEl  = document.getElementById('birdLabel');
+const nearMissEl   = document.getElementById('nearMiss');
+const unlockBanner = document.getElementById('unlockBanner');
+const comboEl      = document.getElementById('combo');
+const loopBannerEl = document.getElementById('loopBanner');
+const startScreen  = document.getElementById('startScreen');
+const goScreen     = document.getElementById('gameOverScreen');
+const lbScreen     = document.getElementById('lbScreen');
+const nameOverlay  = document.getElementById('nameOverlay');
+const bestScoreEl  = document.getElementById('bestScore');
+
+// ── Input ─────────────────────────────────────────────────────
+function flap() {
+  if (dead) return;
+  if (!started) { startGame(); return; }
+  bvy = BIRDS[birdIdx].flapPow * (1 + (loop-1)*0.05);
+  flapWing = 1;
+  spawnFlapParticles();
+  playFlap();
+}
+
+document.addEventListener('keydown', e => { if (e.code==='Space'||e.code==='ArrowUp') { e.preventDefault(); flap(); } });
+canvas.addEventListener('mousedown', e => { e.preventDefault(); flap(); });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive:false });
+document.getElementById('startBtn').addEventListener('click', () => { if (!playerName) showNameOverlay(); else { hideStart(); startGame(); } });
+document.getElementById('retryBtn').addEventListener('click', () => { hideGO(); startGame(); });
+document.getElementById('nameSubmitBtn').addEventListener('click', submitName);
+document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key==='Enter') submitName(); });
+
+function submitName() {
+  const v = document.getElementById('nameInput').value.trim();
+  playerName = v || 'Anonymous';
+  localStorage.setItem('wr_name', playerName);
+  hideNameOverlay();
+  hideStart();
+  startGame();
+}
+
+// ── Leaderboard ───────────────────────────────────────────────
+function getScores() {
+  try { return JSON.parse(localStorage.getItem('wr_lb')||'[]'); } catch(e){ return []; }
+}
+function addScore(name, sc, birdEmoji) {
+  const arr = getScores();
+  arr.push({ name, score:sc, bird:birdEmoji, date:Date.now() });
+  arr.sort((a,b)=>b.score-a.score);
+  try { localStorage.setItem('wr_lb', JSON.stringify(arr.slice(0,20))); } catch(e){}
+}
+function showLb() {
+  hideGO(); hideLb_(); hideStart_();
+  const arr = getScores();
+  const list = document.getElementById('lbList');
+  if (!arr.length) {
+    list.innerHTML = '<li class="lb-empty">No scores yet.<br>Be the first to play!</li>';
+  } else {
+    const medals = ['g','s','b'];
+    list.innerHTML = arr.map((s,i)=>`
+      <li class="lb-row ${s.name===playerName?'me':''}">
+        <span class="lb-rank ${medals[i]||''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+        <span class="lb-name">${esc(s.name)}</span>
+        <span class="lb-bird">${s.bird||'🐦'}</span>
+        <span class="lb-score">${s.score}</span>
+      </li>`).join('');
+  }
+  lbScreen.classList.add('show');
+}
+function hideLb() {
+  lbScreen.classList.remove('show');
+  if (!started && !dead) showStart_();
+  else if (dead) goScreen.classList.add('show');
+}
+function hideLb_() { lbScreen.classList.remove('show'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Name overlay ─────────────────────────────────────────────
+function showNameOverlay() { nameOverlay.classList.add('show'); setTimeout(()=>document.getElementById('nameInput').focus(),100); }
+function hideNameOverlay() { nameOverlay.classList.remove('show'); }
+
+// ── Screen helpers ────────────────────────────────────────────
+function showStart_()  { startScreen.style.display='flex'; }
+function hideStart_()  { startScreen.style.display='none'; }
+function hideStart()   { startScreen.style.display='none'; }
+function hideGO()      { goScreen.classList.remove('show'); }
+
+// ── Stars ─────────────────────────────────────────────────────
+function genStars() {
+  stars = [];
+  for (let i=0;i<120;i++) stars.push({ x:Math.random(), y:Math.random()*0.75, r:Math.random()*1.8+0.4, twinkle:Math.random()*Math.PI*2 });
+}
+genStars();
+
+// ── Init game ─────────────────────────────────────────────────
+function initGame() {
+  W = canvas.width; H = canvas.height;
+  bx = W * BIRD_X_RATIO;
+  by = H * 0.45;
+  bvy = 0; bvx = 0;
+  score = 0; comboCount = 0;
+  obstacles = []; particles = []; trailPoints = [];
+  obSpawnTimer = 0;
+  nearMissTimer = 0; comboTimer = 0;
+  birdIdx = 0; obstacleIdx = 0;
+  skyIdx = 0; skyT = 0; loop = 1;
+  flapAngle = 0; flapWing = 0;
+  dead = false;
+  scoreNumEl.textContent = '0';
+  birdLabelEl.textContent = BIRDS[0].emoji + ' ' + BIRDS[0].name;
+  unlockBanner.classList.remove('show');
+  comboEl.style.opacity = '0';
+  loopBannerEl.style.opacity = '0';
+}
+
+function startGame() {
+  started = true; running = true;
+  hideGO();
+  initGame();
+  mThemeKey = -1; // force music restart
+  startMusic();
+  requestAnimationFrame(loop_);
+}
+
+// ── Main loop ─────────────────────────────────────────────────
+let lastTime = 0;
+function loop_(ts) {
+  if (!running) return;
+  const dt = Math.min((ts - lastTime) / 16.67, 3);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop_);
+}
+
+// ── Speed ──────────────────────────────────────────────────────
+function gameSpeed() {
+  const base = 3.2 + score * 0.012 + (loop-1)*0.8;
+  return Math.min(base, 10);
+}
+
+function gapSize() {
+  const base = H * 0.38 - score * 0.3 - (loop-1)*18;
+  return Math.max(H * 0.2, base);
+}
+
+// ── Update ─────────────────────────────────────────────────────
+function update(dt) {
+  // Sky cycle
+  skyT += dt * 0.008;
+  if (skyT >= 1) { skyT = 0; skyIdx = (skyIdx+1) % SKY_THEMES.length; onMusicContextChange(); }
+
+  // Bird physics
+  const bird = BIRDS[birdIdx];
+  bvy += bird.gravity * dt;
+  bvy = Math.min(bvy, 14);
+  by  += bvy * dt;
+  flapAngle = Math.max(-0.45, Math.min(0.55, bvy * 0.07));
+  flapWing  = Math.max(0, flapWing - dt * 0.12);
+
+  // Trail
+  trailPoints.unshift({ x:bx, y:by, life:1 });
+  if (trailPoints.length > 18) trailPoints.pop();
+  trailPoints.forEach(p => p.life -= dt * 0.07);
+
+  // Obstacle spawn
+  const spawnInterval = Math.max(55, 90 - score*0.15 - (loop-1)*8);
+  obSpawnTimer += dt;
+  if (obSpawnTimer >= spawnInterval / gameSpeed()) {
+    obSpawnTimer = 0;
+    spawnObstacle();
+  }
+
+  // Move & check obstacles
+  let closestDist = Infinity;
+  for (let i = obstacles.length-1; i >= 0; i--) {
+    const ob = obstacles[i];
+    ob.x -= gameSpeed() * dt;
+
+    // Score point
+    if (!ob.passed && ob.x + ob.w < bx) {
+      ob.passed = true;
+      score++;
+      scoreNumEl.textContent = score;
+      comboCount++;
+      comboTimer = 120;
+      updateBirdAndObstacle();
+      checkLoop();
+      playScore();
+    }
+
+    // Near miss (within 12px of gap edge but not dead)
+    const birdR = getBirdRadius();
+    const gapTop    = ob.gapY;
+    const gapBot    = ob.gapY + ob.gap;
+    if (ob.x < bx + birdR + 20 && ob.x + ob.w > bx - birdR - 20) {
+      const distTop = Math.abs(by - gapTop);
+      const distBot = Math.abs(by - gapBot);
+      const closest = Math.min(distTop, distBot);
+      closestDist = Math.min(closestDist, closest);
+      if (closest < birdR + 14 && closest > birdR + 2) {
+        nearMissTimer = 60;
+        nearMissEl.style.opacity = '1';
+        playNearMiss();
+      }
+    }
+
+    // Collision
+    if (checkCollision(ob)) { triggerDeath(); return; }
+
+    if (ob.x + ob.w < -50) obstacles.splice(i,1);
+  }
+
+  if (nearMissTimer > 0) { nearMissTimer -= dt; if (nearMissTimer <= 0) nearMissEl.style.opacity='0'; }
+
+  // Combo display
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboCount >= 5) {
+      comboEl.style.opacity='1';
+      comboEl.textContent = `🔥 x${comboCount} Combo!`;
+    }
+    if (comboTimer <= 0) { comboCount=0; comboEl.style.opacity='0'; }
+  }
+
+  // Ground/ceiling death
+  const groundY = H * 0.88;
+  if (by + getBirdRadius() >= groundY || by - getBirdRadius() <= 0) { triggerDeath(); return; }
+
+  // Particles
+  particles.forEach(p => {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 0.15 * dt; p.life -= dt * 0.04;
+    p.r = Math.max(0, p.r - dt*0.04);
+  });
+  particles = particles.filter(p => p.life > 0 && p.r > 0);
+
+  // Animate obstacles (water, fire, pylons)
+  obstacles.forEach(ob => {
+    ob.animT = (ob.animT||0) + dt * 0.05;
+  });
+}
+
+// ── Spawn Obstacle ─────────────────────────────────────────────
+function spawnObstacle() {
+  const gap   = gapSize();
+  const minY  = H * 0.12;
+  const maxY  = H * 0.75 - gap;
+  const gapY  = minY + Math.random() * (maxY - minY);
+  const obDef = OBSTACLES[obstacleIdx];
+  const w     = 52 + Math.random() * 20;
+
+  obstacles.push({
+    x: W + 10, w, gapY, gap,
+    type: obDef.type,
+    color: obDef.color,
+    accent: obDef.accent,
+    passed: false,
+    animT: 0,
+    wobble: (Math.random()-0.5) * 0.3,
+  });
+}
+
+// ── Check Collision ────────────────────────────────────────────
+function checkCollision(ob) {
+  const r = getBirdRadius() * 0.78;
+  const cx = bx, cy = by;
+  const ox = ob.x, ow = ob.w;
+  const gapTop = ob.gapY, gapBot = ob.gapY + ob.gap;
+
+  if (cx + r < ox || cx - r > ox + ow) return false;
+  if (cy - r < gapTop) return true;
+  if (cy + r > gapBot) return true;
+  return false;
+}
+
+function getBirdRadius() {
+  return (H * 0.038) * BIRDS[birdIdx].size;
+}
+
+// ── Bird & obstacle level up ───────────────────────────────────
+let lastBirdIdx = 0;
+function updateBirdAndObstacle() {
+  // Use score mod 90 so birds/obstacles cycle every 90 points
+  const cycleScore = score % 90;
+
+  // Bird
+  let newBirdIdx = 0;
+  for (let i = BIRDS.length - 1; i >= 0; i--) {
+    if (cycleScore >= BIRDS[i].score) { newBirdIdx = i; break; }
+  }
+
+  if (newBirdIdx !== birdIdx) {
+    birdIdx = newBirdIdx;
+    showUnlockBanner(BIRDS[birdIdx].emoji, BIRDS[birdIdx].name);
+    birdLabelEl.textContent = BIRDS[birdIdx].emoji + ' ' + BIRDS[birdIdx].name;
+  }
+
+  // Obstacle
+  let newObIdx = 0;
+  for (let i = OBSTACLES.length - 1; i >= 0; i--) {
+    if (cycleScore >= OBSTACLES[i].score) { newObIdx = i; break; }
+  }
+  if (newObIdx !== obstacleIdx) { obstacleIdx = newObIdx; onMusicContextChange(); }
+  else { obstacleIdx = newObIdx; }
+}
+
+function checkLoop() {
+  const newLoop = Math.floor(score / 90) + 1;
+  if (newLoop > loop) {
+    loop = newLoop;
+    showLoopBanner(loop);
+  }
+}
+
+// ── Banners ────────────────────────────────────────────────────
+let unlockTimeout;
+function showUnlockBanner(emoji, name) {
+  document.getElementById('unlockEmoji').textContent = emoji;
+  document.getElementById('unlockText').textContent  = name + ' Unlocked!';
+  unlockBanner.classList.add('show');
+  clearTimeout(unlockTimeout);
+  unlockTimeout = setTimeout(()=>unlockBanner.classList.remove('show'), 2200);
+  playUnlock();
+}
+
+let loopTimeout;
+function showLoopBanner(n) {
+  loopBannerEl.textContent = `🌀 LOOP ${n} — FASTER!`;
+  loopBannerEl.style.opacity = '1';
+  clearTimeout(loopTimeout);
+  loopTimeout = setTimeout(()=>loopBannerEl.style.opacity='0', 2500);
+}
+
+// ── Death ──────────────────────────────────────────────────────
+function triggerDeath() {
+  if (dead) return;
+  dead = true; running = false; started = false;
+  stopMusic(1.2);
+
+  if (score > bestScore) bestScore = score;
+  localStorage.setItem('wr_best', bestScore);
+  bestScoreEl.textContent = 'Best: ' + bestScore;
+
+  // Save to leaderboard
+  if (score > 0) addScore(playerName||'Anonymous', score, BIRDS[birdIdx].emoji);
+
+  playDeath();
+  spawnDeathParticles();
+
+  setTimeout(()=>{
+    document.getElementById('goScore').textContent = score;
+    document.getElementById('goBest').textContent  = bestScore;
+    document.getElementById('goBird').textContent  = BIRDS[birdIdx].emoji + ' ' + BIRDS[birdIdx].name;
+    goScreen.classList.add('show');
+  }, 700);
+}
+
+// ── Particles ──────────────────────────────────────────────────
+function spawnFlapParticles() {
+  const bird = BIRDS[birdIdx];
+  const col  = bird.trail || 'rgba(255,255,255,0.5)';
+  for (let i=0;i<5;i++) {
+    particles.push({
+      x:bx-10, y:by+getBirdRadius()*0.5,
+      vx:(Math.random()-0.8)*2, vy:(Math.random()-0.3)*2,
+      r:3+Math.random()*4, life:1, color:col
+    });
+  }
+}
+
+function spawnDeathParticles() {
+  for (let i=0;i<28;i++) {
+    const a = (i/28)*Math.PI*2;
+    particles.push({
+      x:bx, y:by,
+      vx:Math.cos(a)*(3+Math.random()*5),
+      vy:Math.sin(a)*(3+Math.random()*5),
+      r:4+Math.random()*7, life:1,
+      color:`hsl(${Math.random()*60+10},100%,60%)`
+    });
+  }
+}
+
+// ── Draw ───────────────────────────────────────────────────────
+function draw() {
+  W = canvas.width; H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  drawBg();
+  drawObstacles();
+  drawTrail();
+  drawBird();
+  drawGround();
+  drawParticles();
+}
+
+// ── Background ─────────────────────────────────────────────────
+function drawBg() {
+  const cur  = SKY_THEMES[skyIdx];
+  const next = SKY_THEMES[(skyIdx+1) % SKY_THEMES.length];
+  const t    = skyT;
+
+  const lerp = (a,b,t)=> {
+    const ca = hexToRgb(a), cb = hexToRgb(b);
+    return `rgb(${Math.round(ca.r+(cb.r-ca.r)*t)},${Math.round(ca.g+(cb.g-ca.g)*t)},${Math.round(ca.b+(cb.b-ca.b)*t)})`;
+  };
+
+  const topC = lerp(cur.top,  next.top,  t);
+  const midC = lerp(cur.mid,  next.mid,  t);
+  const botC = lerp(cur.bot,  next.bot,  t);
+  const gndC = lerp(cur.ground,next.ground,t);
+
+  const grd = ctx.createLinearGradient(0,0,0,H*0.88);
+  grd.addColorStop(0, topC);
+  grd.addColorStop(0.5, midC);
+  grd.addColorStop(1, botC);
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,W,H*0.88);
+
+  // Stars (night/dusk)
+  const starAlpha = cur.star ? 1-t : (next.star ? t : 0);
+  if (starAlpha > 0.01) {
+    stars.forEach(s => {
+      const twinkle = 0.5 + 0.5*Math.sin(s.twinkle + Date.now()*0.002);
+      ctx.beginPath();
+      ctx.arc(s.x*W, s.y*H*0.85, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,240,${starAlpha * twinkle})`;
+      ctx.fill();
+    });
+  }
+
+  // Moon (night)
+  if (starAlpha > 0.1) {
+    ctx.save();
+    ctx.globalAlpha = starAlpha * 0.9;
+    ctx.beginPath();
+    ctx.arc(W*0.82, H*0.12, H*0.05, 0, Math.PI*2);
+    ctx.fillStyle = '#fffde0';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(W*0.82+H*0.018, H*0.12-H*0.01, H*0.045, 0, Math.PI*2);
+    ctx.fillStyle = lerp(cur.top,next.top,t);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Clouds (day/dawn)
+  const cloudAlpha = 1-Math.max(cur.star?1:0, next.star?t:0);
+  if (cloudAlpha > 0.1) {
+    ctx.save();
+    ctx.globalAlpha = cloudAlpha * 0.6;
+    drawCloud(W*0.15, H*0.15, H*0.045);
+    drawCloud(W*0.55, H*0.1,  H*0.035);
+    drawCloud(W*0.8,  H*0.2,  H*0.04);
+    ctx.restore();
+  }
+}
+
+function drawCloud(cx,cy,r) {
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  [[0,0,1],[r*0.8,r*0.2,0.8],[-r*0.8,r*0.2,0.75],[r*1.5,0,0.65],[-r*1.5,0,0.6]].forEach(([ox,oy,s])=>{
+    ctx.beginPath();
+    ctx.arc(cx+ox, cy+oy, r*s, 0, Math.PI*2);
+    ctx.fill();
+  });
+}
+
+// ── Ground ─────────────────────────────────────────────────────
+function drawGround() {
+  const cur  = SKY_THEMES[skyIdx];
+  const next = SKY_THEMES[(skyIdx+1) % SKY_THEMES.length];
+  const lerp = (a,b,t)=>{const ca=hexToRgb(a),cb=hexToRgb(b);return `rgb(${Math.round(ca.r+(cb.r-ca.r)*skyT)},${Math.round(ca.g+(cb.g-ca.g)*skyT)},${Math.round(ca.b+(cb.b-ca.b)*skyT)})`};
+  const groundY = H*0.88;
+  ctx.fillStyle = lerp(cur.ground, next.ground, skyT);
+  ctx.fillRect(0, groundY, W, H - groundY);
+  // Grass tuft line
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(0, groundY, W, 3);
+}
+
+// ── Obstacles ──────────────────────────────────────────────────
+function drawObstacles() {
+  const groundY = H * 0.88;
+  obstacles.forEach(ob => {
+    const { x, w, gapY, gap, type, color, accent, animT } = ob;
+    const topH   = gapY;
+    const botY   = gapY + gap;
+    const botH   = groundY - botY;
+
+    ctx.save();
+    switch(type) {
+      case 'grass':       drawGrassOb(x,w,topH,botY,botH,color,accent); break;
+      case 'rocks':       drawRocksOb(x,w,topH,botY,botH,color,accent); break;
+      case 'vines':       drawVinesOb(x,w,topH,botY,botH,color,accent,animT); break;
+      case 'water':       drawWaterOb(x,w,topH,botY,botH,color,accent,animT); break;
+      case 'buildings':   drawBuildOb(x,w,topH,botY,botH,color,accent); break;
+      case 'mountains':   drawMountOb(x,w,topH,botY,botH,color,accent); break;
+      case 'stalactites': drawStalOb (x,w,topH,botY,botH,color,accent); break;
+      case 'fire':        drawFireOb (x,w,topH,botY,botH,color,accent,animT); break;
+      case 'pylons':      drawPylonOb(x,w,topH,botY,botH,color,accent,animT); break;
+      case 'crystals':    drawCrysOb (x,w,topH,botY,botH,color,accent); break;
+    }
+    ctx.restore();
+  });
+}
+
+function drawGrassOb(x,w,topH,botY,botH,col,acc) {
+  // Top block
+  ctx.fillStyle=col;
+  ctx.fillRect(x,0,w,topH);
+  // Jagged grass top
+  ctx.fillStyle=acc;
+  for(let i=0;i<w;i+=8){
+    const h=8+Math.sin(i*0.5)*4;
+    ctx.fillRect(x+i,topH-h,7,h+2);
+  }
+  // Bottom block
+  ctx.fillStyle=col;
+  ctx.fillRect(x,botY,w,botH);
+  ctx.fillStyle=acc;
+  for(let i=0;i<w;i+=8){
+    const h=8+Math.sin(i*0.7)*4;
+    ctx.fillRect(x+i,botY,7,h);
+  }
+}
+
+function drawRocksOb(x,w,topH,botY,botH,col,acc) {
+  ctx.fillStyle=col;
+  ctx.fillRect(x,0,w,topH);
+  ctx.fillStyle=acc;
+  // Jagged rocks
+  ctx.beginPath(); ctx.moveTo(x,topH);
+  for(let i=0;i<=w;i+=12) ctx.lineTo(x+i, topH-(i%24===0?14:6));
+  ctx.lineTo(x+w,0); ctx.lineTo(x,0); ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle=col;
+  ctx.fillRect(x,botY,w,botH);
+  ctx.fillStyle=acc;
+  ctx.beginPath(); ctx.moveTo(x,botY);
+  for(let i=0;i<=w;i+=12) ctx.lineTo(x+i, botY+(i%24===0?14:6));
+  ctx.lineTo(x+w,botY+botH); ctx.lineTo(x,botY+botH); ctx.closePath(); ctx.fill();
+}
+
+function drawVinesOb(x,w,topH,botY,botH,col,acc,t) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  ctx.fillStyle=acc; ctx.fillRect(x,0,w,topH);
+  // Hanging vines
+  for(let i=4;i<w-4;i+=10){
+    const swing=Math.sin(t*2+i)*5;
+    ctx.strokeStyle=acc; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(x+i+swing,topH);
+    ctx.quadraticCurveTo(x+i+swing+6,topH+12,x+i+swing,topH+20+Math.sin(i)*8);
+    ctx.stroke();
+  }
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  // Roots from bottom
+  for(let i=4;i<w-4;i+=10){
+    const swing=Math.sin(t*2+i+1)*4;
+    ctx.strokeStyle=acc; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(x+i+swing,botY);
+    ctx.quadraticCurveTo(x+i+swing-4,botY-10,x+i+swing,botY-16);
+    ctx.stroke();
+  }
+}
+
+function drawWaterOb(x,w,topH,botY,botH,col,acc,t) {
+  // Top water spout
+  const wave=Math.sin(t*4)*6;
+  ctx.fillStyle=col;
+  ctx.fillRect(x,0,w,topH);
+  ctx.fillStyle=acc;
+  // Ripple at tip
+  for(let i=0;i<3;i++){
+    ctx.globalAlpha=0.4-i*0.12;
+    ctx.beginPath();
+    ctx.ellipse(x+w/2, topH+wave, w*0.6+i*8, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  ctx.fillStyle=acc;
+  for(let i=0;i<3;i++){
+    ctx.globalAlpha=0.4-i*0.12;
+    ctx.beginPath();
+    ctx.ellipse(x+w/2, botY-wave, w*0.6+i*8, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawBuildOb(x,w,topH,botY,botH,col,acc) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  // Windows
+  for(let ry=8;ry<topH-8;ry+=16){
+    for(let rx=4;rx<w-4;rx+=14){
+      ctx.fillStyle=Math.random()>0.5?'rgba(255,255,180,0.6)':'rgba(0,0,0,0.4)';
+      ctx.fillRect(x+rx,ry,8,8);
+    }
+  }
+  // Cracked edge
+  ctx.strokeStyle=acc; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x+w*0.3,topH); ctx.lineTo(x+w*0.5,topH-12); ctx.lineTo(x+w*0.7,topH); ctx.stroke();
+
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  for(let ry=botY+8;ry<botY+botH-8;ry+=16){
+    for(let rx=4;rx<w-4;rx+=14){
+      ctx.fillStyle=Math.random()>0.5?'rgba(255,255,180,0.5)':'rgba(0,0,0,0.4)';
+      ctx.fillRect(x+rx,ry,8,8);
+    }
+  }
+}
+
+function drawMountOb(x,w,topH,botY,botH,col,acc) {
+  // Top peak pointing down
+  ctx.fillStyle=col;
+  ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x+w,0); ctx.lineTo(x+w,topH);
+  ctx.lineTo(x+w*0.65,topH); ctx.lineTo(x+w*0.5,topH+18); ctx.lineTo(x+w*0.35,topH);
+  ctx.lineTo(x,topH); ctx.closePath(); ctx.fill();
+  // Snow cap
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  ctx.beginPath(); ctx.moveTo(x+w*0.35,topH); ctx.lineTo(x+w*0.5,topH+18); ctx.lineTo(x+w*0.65,topH); ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle=col;
+  ctx.beginPath(); ctx.moveTo(x,botY+botH); ctx.lineTo(x+w,botY+botH); ctx.lineTo(x+w,botY);
+  ctx.lineTo(x+w*0.65,botY); ctx.lineTo(x+w*0.5,botY-18); ctx.lineTo(x+w*0.35,botY);
+  ctx.lineTo(x,botY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  ctx.beginPath(); ctx.moveTo(x+w*0.35,botY); ctx.lineTo(x+w*0.5,botY-18); ctx.lineTo(x+w*0.65,botY); ctx.closePath(); ctx.fill();
+}
+
+function drawStalOb(x,w,topH,botY,botH,col,acc) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  // Stalactites (top spikes down)
+  ctx.fillStyle=acc;
+  for(let i=3;i<w-3;i+=13){
+    const sh=15+Math.sin(i)*8;
+    ctx.beginPath(); ctx.moveTo(x+i,topH); ctx.lineTo(x+i+6,topH); ctx.lineTo(x+i+3,topH+sh); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  // Stalagmites (bottom spikes up)
+  ctx.fillStyle=acc;
+  for(let i=3;i<w-3;i+=13){
+    const sh=15+Math.cos(i)*8;
+    ctx.beginPath(); ctx.moveTo(x+i,botY); ctx.lineTo(x+i+6,botY); ctx.lineTo(x+i+3,botY-sh); ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawFireOb(x,w,topH,botY,botH,col,acc,t) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  // Fire at bottom of top pillar
+  for(let i=0;i<w;i+=8){
+    const flicker=Math.sin(t*8+i)*5+8;
+    const grd=ctx.createLinearGradient(0,topH-flicker,0,topH+4);
+    grd.addColorStop(0,'rgba(255,200,0,0)');
+    grd.addColorStop(0.4,'rgba(255,130,0,0.8)');
+    grd.addColorStop(1,'rgba(255,50,0,0.9)');
+    ctx.fillStyle=grd;
+    ctx.beginPath(); ctx.ellipse(x+i+4,topH,5,flicker,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  for(let i=0;i<w;i+=8){
+    const flicker=Math.sin(t*8+i+2)*5+8;
+    const grd=ctx.createLinearGradient(0,botY,0,botY-flicker);
+    grd.addColorStop(0,'rgba(255,50,0,0.9)');
+    grd.addColorStop(0.5,'rgba(255,130,0,0.8)');
+    grd.addColorStop(1,'rgba(255,200,0,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath(); ctx.ellipse(x+i+4,botY,5,flicker,0,0,Math.PI*2); ctx.fill();
+  }
+}
+
+function drawPylonOb(x,w,topH,botY,botH,col,acc,t) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  // Electric sparks
+  ctx.strokeStyle=acc; ctx.lineWidth=2;
+  for(let i=0;i<3;i++){
+    const sy=topH-5-i*6;
+    ctx.globalAlpha=0.5+0.5*Math.sin(t*12+i);
+    ctx.beginPath(); ctx.moveTo(x,sy);
+    for(let j=1;j<=5;j++) ctx.lineTo(x+j*(w/5), sy+(Math.random()-0.5)*8);
+    ctx.lineTo(x+w,sy); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  ctx.strokeStyle=acc; ctx.lineWidth=2;
+  for(let i=0;i<3;i++){
+    const sy=botY+4+i*6;
+    ctx.globalAlpha=0.5+0.5*Math.sin(t*12+i+1);
+    ctx.beginPath(); ctx.moveTo(x,sy);
+    for(let j=1;j<=5;j++) ctx.lineTo(x+j*(w/5), sy+(Math.random()-0.5)*8);
+    ctx.lineTo(x+w,sy); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawCrysOb(x,w,topH,botY,botH,col,acc) {
+  ctx.fillStyle=col; ctx.fillRect(x,0,w,topH);
+  ctx.fillStyle=acc;
+  // Crystal spires top (pointing down)
+  for(let i=2;i<w-2;i+=11){
+    const sh=20+Math.sin(i)*10;
+    ctx.globalAlpha=0.85;
+    ctx.beginPath(); ctx.moveTo(x+i,topH); ctx.lineTo(x+i+5,topH-sh*0.4); ctx.lineTo(x+i+5,topH); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+i,topH); ctx.lineTo(x+i+2,topH-sh); ctx.lineTo(x+i+5,topH); ctx.closePath(); ctx.fill();
+    // Glint
+    ctx.globalAlpha=0.4;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.moveTo(x+i+1,topH-4); ctx.lineTo(x+i+2,topH-sh+2); ctx.lineTo(x+i+3,topH-4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=acc;
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle=col; ctx.fillRect(x,botY,w,botH);
+  ctx.fillStyle=acc;
+  for(let i=2;i<w-2;i+=11){
+    const sh=20+Math.cos(i)*10;
+    ctx.globalAlpha=0.85;
+    ctx.beginPath(); ctx.moveTo(x+i,botY); ctx.lineTo(x+i+5,botY+sh*0.4); ctx.lineTo(x+i+5,botY); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+i,botY); ctx.lineTo(x+i+2,botY+sh); ctx.lineTo(x+i+5,botY); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=0.4; ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.moveTo(x+i+1,botY+4); ctx.lineTo(x+i+2,botY+sh-2); ctx.lineTo(x+i+3,botY+4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=acc;
+  }
+  ctx.globalAlpha=1;
+}
+
+// ── Draw Trail ──────────────────────────────────────────────────
+function drawTrail() {
+  const bird = BIRDS[birdIdx];
+  if (!bird.trail) return;
+  trailPoints.forEach((p,i)=>{
+    const a = p.life * 0.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, getBirdRadius()*0.5*(1-i/trailPoints.length), 0, Math.PI*2);
+    ctx.fillStyle = bird.trail.replace(/[\d.]+\)$/, a+')');
+    ctx.fill();
+  });
+}
+
+// ── Draw Bird ───────────────────────────────────────────────────
+function drawBird() {
+  const bird = BIRDS[birdIdx];
+  const r = getBirdRadius();
+  ctx.save();
+  ctx.translate(bx, by);
+  ctx.rotate(flapAngle);
+
+  // Shadow
+  ctx.globalAlpha=0.2;
+  ctx.beginPath(); ctx.ellipse(0, r*1.1, r*0.9, r*0.25, 0, 0, Math.PI*2);
+  ctx.fillStyle='#000'; ctx.fill();
+  ctx.globalAlpha=1;
+
+  // Special glow effects
+  if (bird.emoji==='🔥'||bird.emoji==='⚡'||bird.emoji==='👑') {
+    const glowColor = bird.emoji==='🔥'?'rgba(255,100,0,0.4)':bird.emoji==='⚡'?'rgba(255,255,0,0.4)':'rgba(255,215,0,0.4)';
+    ctx.beginPath(); ctx.arc(0,0,r*1.5,0,Math.PI*2);
+    const grd=ctx.createRadialGradient(0,0,0,0,0,r*1.5);
+    grd.addColorStop(0,glowColor); grd.addColorStop(1,'transparent');
+    ctx.fillStyle=grd; ctx.fill();
+  }
+
+  // Bird emoji
+  ctx.font = `${r*2.1}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Flip horizontally so all birds face right (direction of travel)
+  // Wing flap: slight scale on Y
+  const wingScale = 1 - flapWing * 0.2;
+  ctx.scale(-1, wingScale);
+  ctx.fillText(bird.emoji, 0, 0);
+  ctx.restore();
+}
+
+// ── Draw Particles ──────────────────────────────────────────────
+function drawParticles() {
+  particles.forEach(p=>{
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.color; ctx.fill();
+    ctx.restore();
+  });
+}
+
+// ── Util ────────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+// ── Audio ───────────────────────────────────────────────────────
+let actx = null;
+
+function getACtx() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (actx.state === 'suspended') {
+    actx.resume();
+  }
+  return actx;
+}
+
+// Master volume helper — connects to destination with a gain boost
+function masterOut(c) {
+  const g = c.createGain();
+  g.gain.value = 1.4;
+  g.connect(c.destination);
+  return g;
+}
+
+function playFlap() {
+  try {
+    const c = getACtx(), n = c.currentTime, out = masterOut(c);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(520 + birdIdx * 30, n);
+    o.frequency.exponentialRampToValueAtTime(320, n + 0.08);
+    g.gain.setValueAtTime(0.22, n);
+    g.gain.exponentialRampToValueAtTime(0.001, n + 0.13);
+    o.connect(g); g.connect(out);
+    o.start(n); o.stop(n + 0.15);
+  } catch(e) {}
+}
+
+function playScore() {
+  try {
+    const c = getACtx(), n = c.currentTime, out = masterOut(c);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(660, n);
+    o.frequency.setValueAtTime(880, n + 0.05);
+    g.gain.setValueAtTime(0.18, n);
+    g.gain.exponentialRampToValueAtTime(0.001, n + 0.18);
+    o.connect(g); g.connect(out);
+    o.start(n); o.stop(n + 0.2);
+  } catch(e) {}
+}
+
+function playNearMiss() {
+  try {
+    const c = getACtx(), n = c.currentTime, out = masterOut(c);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(200, n);
+    o.frequency.exponentialRampToValueAtTime(400, n + 0.1);
+    g.gain.setValueAtTime(0.14, n);
+    g.gain.exponentialRampToValueAtTime(0.001, n + 0.15);
+    o.connect(g); g.connect(out);
+    o.start(n); o.stop(n + 0.18);
+  } catch(e) {}
+}
+
+// ── Unique bird sounds on unlock ─────────────────────────────────
+function playBirdSound(idx) {
+  try {
+    const c = getACtx(), n = c.currentTime, out = masterOut(c);
+    switch(idx) {
+
+      case 0: // 🐣 Baby Chick — rapid cute chirps
+        [0, 0.09, 0.18, 0.26].forEach((t, i) => {
+          const freq = i % 2 === 0 ? 2200 : 2600;
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(freq, n + t);
+          o.frequency.exponentialRampToValueAtTime(freq * 1.35, n + t + 0.06);
+          g.gain.setValueAtTime(0.28, n + t);
+          g.gain.exponentialRampToValueAtTime(0.001, n + t + 0.08);
+          o.connect(g); g.connect(out);
+          o.start(n + t); o.stop(n + t + 0.09);
+        });
+        break;
+
+      case 1: // 🐦 Sparrow — light quick twitter trill
+        for (let i = 0; i < 6; i++) {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'triangle';
+          const f = 1400 + (i % 2 === 0 ? 200 : -100);
+          o.frequency.setValueAtTime(f, n + i * 0.06);
+          o.frequency.linearRampToValueAtTime(f + 300, n + i * 0.06 + 0.04);
+          g.gain.setValueAtTime(0.22, n + i * 0.06);
+          g.gain.exponentialRampToValueAtTime(0.001, n + i * 0.06 + 0.07);
+          o.connect(g); g.connect(out);
+          o.start(n + i * 0.06); o.stop(n + i * 0.06 + 0.08);
+        }
+        break;
+
+      case 2: // 🦜 Parrot — loud squawk
+        {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(380, n);
+          o.frequency.exponentialRampToValueAtTime(980, n + 0.15);
+          o.frequency.exponentialRampToValueAtTime(550, n + 0.32);
+          o.frequency.exponentialRampToValueAtTime(820, n + 0.45);
+          g.gain.setValueAtTime(0.35, n);
+          g.gain.exponentialRampToValueAtTime(0.001, n + 0.5);
+          const f = c.createBiquadFilter();
+          f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 1.5;
+          o.connect(f); f.connect(g); g.connect(out);
+          o.start(n); o.stop(n + 0.52);
+        }
+        break;
+
+      case 3: // 🦩 Flamingo — smooth elegant whistle down
+        {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(1300, n);
+          o.frequency.exponentialRampToValueAtTime(480, n + 0.5);
+          g.gain.setValueAtTime(0.0, n);
+          g.gain.linearRampToValueAtTime(0.3, n + 0.06);
+          g.gain.exponentialRampToValueAtTime(0.001, n + 0.55);
+          o.connect(g); g.connect(out);
+          o.start(n); o.stop(n + 0.58);
+        }
+        break;
+
+      case 4: // 🦉 Owl — deep double hoot
+        [0, 0.32].forEach(t => {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(330, n + t);
+          o.frequency.exponentialRampToValueAtTime(260, n + t + 0.22);
+          g.gain.setValueAtTime(0.0, n + t);
+          g.gain.linearRampToValueAtTime(0.35, n + t + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, n + t + 0.26);
+          o.connect(g); g.connect(out);
+          o.start(n + t); o.stop(n + t + 0.28);
+          // Undertone
+          const o2 = c.createOscillator(), g2 = c.createGain();
+          o2.type = 'sine'; o2.frequency.value = 165;
+          g2.gain.setValueAtTime(0.12, n + t);
+          g2.gain.exponentialRampToValueAtTime(0.001, n + t + 0.26);
+          o2.connect(g2); g2.connect(out);
+          o2.start(n + t); o2.stop(n + t + 0.28);
+        });
+        break;
+
+      case 5: // 🦅 Eagle — piercing sharp screech
+        {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(1400, n);
+          o.frequency.exponentialRampToValueAtTime(320, n + 0.14);
+          o.frequency.exponentialRampToValueAtTime(900, n + 0.25);
+          o.frequency.exponentialRampToValueAtTime(280, n + 0.45);
+          g.gain.setValueAtTime(0.38, n);
+          g.gain.exponentialRampToValueAtTime(0.001, n + 0.48);
+          const hpf = c.createBiquadFilter();
+          hpf.type = 'highpass'; hpf.frequency.value = 500;
+          o.connect(hpf); hpf.connect(g); g.connect(out);
+          o.start(n); o.stop(n + 0.5);
+        }
+        break;
+
+      case 6: // 🦇 Bat — echolocation rapid clicks
+        for (let i = 0; i < 10; i++) {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine';
+          o.frequency.value = 3500 - i * 180;
+          g.gain.setValueAtTime(0.2, n + i * 0.045);
+          g.gain.exponentialRampToValueAtTime(0.001, n + i * 0.045 + 0.04);
+          o.connect(g); g.connect(out);
+          o.start(n + i * 0.045); o.stop(n + i * 0.045 + 0.045);
+        }
+        break;
+
+      case 7: // 🔥 Phoenix — fire whoosh + rising tone
+        {
+          // Noise whoosh
+          const bLen = Math.floor(c.sampleRate * 0.7);
+          const buf = c.createBuffer(1, bLen, c.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < bLen; i++) {
+            d[i] = (Math.random() * 2 - 1) * Math.pow(i / bLen, 0.4) * Math.pow(1 - i / bLen, 0.25);
+          }
+          const ns = c.createBufferSource(); ns.buffer = buf;
+          const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.6;
+          const ng = c.createGain(); ng.gain.setValueAtTime(0.55, n); ng.gain.exponentialRampToValueAtTime(0.001, n + 0.7);
+          ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(n);
+          // Ascending tone
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(180, n);
+          o.frequency.exponentialRampToValueAtTime(1100, n + 0.55);
+          g.gain.setValueAtTime(0.0, n); g.gain.linearRampToValueAtTime(0.28, n + 0.1);
+          g.gain.exponentialRampToValueAtTime(0.001, n + 0.6);
+          o.connect(g); g.connect(out); o.start(n); o.stop(n + 0.65);
+        }
+        break;
+
+      case 8: // ⚡ Thunder Bird — electric crack + buzz
+        {
+          // Three hard zaps
+          [0, 0.12, 0.22].forEach(t => {
+            const bLen = Math.floor(c.sampleRate * 0.07);
+            const buf = c.createBuffer(1, bLen, c.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let i = 0; i < bLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bLen, 1.2);
+            const ns = c.createBufferSource(); ns.buffer = buf;
+            const hpf = c.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 2500;
+            const ng = c.createGain(); ng.gain.setValueAtTime(0.6, n + t); ng.gain.exponentialRampToValueAtTime(0.001, n + t + 0.07);
+            ns.connect(hpf); hpf.connect(ng); ng.connect(out); ns.start(n + t);
+          });
+          // Buzz
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'square'; o.frequency.value = 60;
+          g.gain.setValueAtTime(0.2, n); g.gain.exponentialRampToValueAtTime(0.001, n + 0.4);
+          o.connect(g); g.connect(out); o.start(n); o.stop(n + 0.42);
+        }
+        break;
+
+      case 9: // 👑 Golden Bird — triumphant royal fanfare
+        [[523,0],[659,0.1],[784,0.2],[1047,0.32],[1319,0.42],[1047,0.52],[1568,0.6]].forEach(([f, t]) => {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'triangle'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.0, n + t);
+          g.gain.linearRampToValueAtTime(0.28, n + t + 0.025);
+          g.gain.exponentialRampToValueAtTime(0.001, n + t + 0.22);
+          o.connect(g); g.connect(out);
+          o.start(n + t); o.stop(n + t + 0.25);
+          // Harmony
+          const o2 = c.createOscillator(), g2 = c.createGain();
+          o2.type = 'sine'; o2.frequency.value = f * 1.5;
+          g2.gain.setValueAtTime(0.0, n + t);
+          g2.gain.linearRampToValueAtTime(0.1, n + t + 0.025);
+          g2.gain.exponentialRampToValueAtTime(0.001, n + t + 0.22);
+          o2.connect(g2); g2.connect(out);
+          o2.start(n + t); o2.stop(n + t + 0.25);
+        });
+        break;
+
+      default:
+        // Fallback jingle
+        [523, 659, 784].forEach((f, i) => {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.2, n + i * 0.1);
+          g.gain.exponentialRampToValueAtTime(0.001, n + i * 0.1 + 0.15);
+          o.connect(g); g.connect(out);
+          o.start(n + i * 0.1); o.stop(n + i * 0.1 + 0.18);
+        });
+    }
+  } catch(e) { console.warn('Bird sound error:', e); }
+}
+
+function playUnlock() {
+  playBirdSound(birdIdx);
+}
+
+function playDeath(){
+  try{
+    const c=getACtx(),n=c.currentTime;
+    const mg=c.createGain(); mg.gain.value=1.8; mg.connect(c.destination);
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(300,n); o.frequency.exponentialRampToValueAtTime(50,n+0.5);
+    g.gain.setValueAtTime(0.5,n); g.gain.exponentialRampToValueAtTime(0.001,n+0.6);
+    o.connect(g); g.connect(mg); o.start(n); o.stop(n+0.65);
+    const bLen=Math.floor(c.sampleRate*0.3),buf=c.createBuffer(1,bLen,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<bLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/bLen,0.8);
+    const ns=c.createBufferSource(); ns.buffer=buf;
+    const lpf=c.createBiquadFilter(); lpf.type='lowpass'; lpf.frequency.value=400;
+    const ng=c.createGain(); ng.gain.setValueAtTime(0.6,n); ng.gain.exponentialRampToValueAtTime(0.001,n+0.35);
+    ns.connect(lpf); lpf.connect(ng); ng.connect(mg); ns.start(n);
+  }catch(e){}
+}
+
+
+
+// ══════════════════════════════════════════════════════════════
+//  DYNAMIC MUSIC ENGINE — simple, reliable, always audible
+// ══════════════════════════════════════════════════════════════
+
+let mCtx       = null;   // shared AudioContext (same as SFX)
+let mInterval  = null;   // setInterval handle
+let mMaster    = null;   // master gain
+let mBeat      = 0;      // current beat step
+let mThemeKey  = -1;     // sky*10+obstacle to detect changes
+
+// Music uses the SAME context as SFX so it always works
+function getMCtx() {
+  // Share the same AudioContext as SFX — avoids browser blocking
+  if (!mCtx) mCtx = getACtx();
+  if (mCtx.state === 'suspended') mCtx.resume();
+  return mCtx;
+}
+
+// ── Note helper ───────────────────────────────────────────────
+function mFreq(base, semitones) {
+  return base * Math.pow(2, semitones / 12);
+}
+
+// ── Theme definitions: each sky has unique feel ───────────────
+//    Each obstacle zone shifts the key (transposition in semitones)
+const M_SKY = {
+  //        bpm  base   bass pattern (semitones)  melody (semitones)  waveform  drums
+  dawn:  { bpm:88,  base:261, bass:[0,-5,0,-7],   mel:[0,4,7,4,9,7,4,0],  wave:'sine',     drums:false },
+  day:   { bpm:132, base:293, bass:[0,0,-5,-5],   mel:[0,2,4,7,4,2,0,4],  wave:'triangle', drums:true  },
+  dusk:  { bpm:100, base:246, bass:[0,-3,-5,-3],  mel:[0,3,5,7,5,3,0,-2], wave:'sawtooth', drums:true  },
+  night: { bpm:118, base:220, bass:[0,-1,-3,-1],  mel:[7,5,3,1,0,3,5,7],  wave:'square',   drums:true  },
+};
+
+// Obstacle zone: semitone shift on top of sky base
+const M_OB_SHIFT = [0, 2, 3, 5, -2, -5, -3, 7, 10, 12];
+// dawn has no drums so keep it calm, others get punchy
+
+function getSkyName()  { return ['dawn','day','dusk','night'][skyIdx] || 'day'; }
+function getThemeKey() { return skyIdx * 10 + obstacleIdx; }
+
+// ── Stop music ────────────────────────────────────────────────
+function stopMusic() {
+  if (mInterval) { clearInterval(mInterval); mInterval = null; }
+  if (mMaster && mCtx) {
+    try {
+      mMaster.gain.setTargetAtTime(0, mCtx.currentTime, 0.3);
+      setTimeout(() => { try { mMaster.disconnect(); } catch(e){} mMaster = null; }, 800);
+    } catch(e) { mMaster = null; }
+  }
+  mBeat = 0;
+  mThemeKey = -1;
+}
+
+// ── Start / switch music ──────────────────────────────────────
+function startMusic() {
+  // Make sure we have a valid AudioContext (requires user gesture)
+  try { getMCtx(); } catch(e) { return; }
+
+  const key = getThemeKey();
+  if (key === mThemeKey && mInterval) return; // already playing this theme
+  mThemeKey = key;
+
+  // Fade out old master, create new one
+  if (mMaster && mCtx) {
+    const old = mMaster;
+    try { old.gain.setTargetAtTime(0, mCtx.currentTime, 0.25); } catch(e){}
+    setTimeout(() => { try { old.disconnect(); } catch(e){} }, 700);
+  }
+
+  if (mInterval) { clearInterval(mInterval); mInterval = null; }
+  mBeat = 0;
+
+  const c     = getMCtx();
+  const sky   = M_SKY[getSkyName()] || M_SKY.day;
+  const shift = M_OB_SHIFT[obstacleIdx] || 0;
+  const base  = mFreq(sky.base, shift);
+  const stepMs = Math.round((60000 / sky.bpm) / 2); // 8th note in ms
+
+  // New master gain — fade in
+  const master = c.createGain();
+  master.gain.setValueAtTime(0, c.currentTime);
+  master.gain.linearRampToValueAtTime(0.22, c.currentTime + 1.0);
+  master.connect(c.destination);
+  mMaster = master;
+
+  // Continuous atmosphere pad (holds throughout)
+  spawnPad(c, master, sky, base);
+
+  // Beat scheduler
+  mInterval = setInterval(() => {
+    if (!running || !mMaster) return;
+    try {
+      const now = c.currentTime;
+      const step8 = (60 / sky.bpm) / 2;
+
+      // Bass — every 4 eighth notes (half bar)
+      if (mBeat % 4 === 0) {
+        const bassNote = sky.bass[Math.floor(mBeat/4) % sky.bass.length];
+        playMNote(c, master, mFreq(base, bassNote) / 2, step8 * 3.6, sky.wave === 'square' ? 'square' : 'triangle', 0.28);
+      }
+
+      // Melody — every 2 eighth notes
+      if (mBeat % 2 === 0) {
+        const melNote = sky.mel[Math.floor(mBeat/2) % sky.mel.length];
+        playMNote(c, master, mFreq(base, melNote) * 2, step8 * 0.85, sky.wave, 0.14);
+      }
+
+      // Drums
+      if (sky.drums) {
+        const b = mBeat % 8;
+        if (b === 0 || b === 4) playKick(c, master);          // kick on 1 & 3
+        if (b === 2 || b === 6) playSnare(c, master);         // snare on 2 & 4
+        playHat(c, master, mBeat % 2 === 0 ? 0.09 : 0.05);   // hi-hat every 8th
+      }
+
+      mBeat = (mBeat + 1) % 256;
+    } catch(e) {}
+  }, stepMs);
+}
+
+// ── Pad — continuous droning atmosphere ───────────────────────
+function spawnPad(c, master, sky, base) {
+  const harmonics = sky.wave === 'sine' ? [1, 1.5, 2, 3] : [1, 2, 3];
+  harmonics.forEach((mult, i) => {
+    try {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = (base / 2) * mult;
+      // Slow gentle detune for richness
+      o.detune.value = (i % 2 === 0 ? 3 : -3);
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime((0.06 - i * 0.012), c.currentTime + 2.5);
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 600;
+      o.connect(lp); lp.connect(g); g.connect(master);
+      o.start();
+      // Stop pad when master fades (we disconnect master)
+      // Store reference so stopMusic can clean up
+    } catch(e) {}
+  });
+}
+
+// ── Play a single music note ──────────────────────────────────
+function playMNote(c, master, freq, dur, wave, vol) {
+  try {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = wave || 'sine';
+    o.frequency.value = Math.max(40, Math.min(freq, 4000));
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = wave === 'square' ? 800 : wave === 'sawtooth' ? 1200 : 3000;
+    g.gain.setValueAtTime(0, c.currentTime);
+    g.gain.linearRampToValueAtTime(vol, c.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+    o.connect(lp); lp.connect(g); g.connect(master);
+    o.start(); o.stop(c.currentTime + dur + 0.05);
+  } catch(e) {}
+}
+
+// ── Kick drum ─────────────────────────────────────────────────
+function playKick(c, master) {
+  try {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, c.currentTime);
+    o.frequency.exponentialRampToValueAtTime(40, c.currentTime + 0.08);
+    g.gain.setValueAtTime(0.55, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.22);
+    o.connect(g); g.connect(master);
+    o.start(); o.stop(c.currentTime + 0.25);
+  } catch(e) {}
+}
+
+// ── Snare ─────────────────────────────────────────────────────
+function playSnare(c, master) {
+  try {
+    const bLen = c.sampleRate * 0.1 | 0;
+    const buf = c.createBuffer(1, bLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bLen; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/bLen, 1.5);
+    const ns = c.createBufferSource(); ns.buffer = buf;
+    const hp = c.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1500;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.35, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
+    ns.connect(hp); hp.connect(g); g.connect(master); ns.start();
+    // Body tone
+    const o = c.createOscillator(), og = c.createGain();
+    o.type='triangle'; o.frequency.value=200;
+    og.gain.setValueAtTime(0.12, c.currentTime);
+    og.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    o.connect(og); og.connect(master); o.start(); o.stop(c.currentTime + 0.08);
+  } catch(e) {}
+}
+
+// ── Hi-hat ────────────────────────────────────────────────────
+function playHat(c, master, vol) {
+  try {
+    const bLen = c.sampleRate * 0.03 | 0;
+    const buf = c.createBuffer(1, bLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bLen; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/bLen, 4);
+    const ns = c.createBufferSource(); ns.buffer = buf;
+    const hp = c.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=9000;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03);
+    ns.connect(hp); hp.connect(g); g.connect(master); ns.start();
+  } catch(e) {}
+}
+
+// ── Called on sky or obstacle change ─────────────────────────
+function onMusicContextChange() {
+  if (running) startMusic();
+}
+
+// ── Load saved data ──────────────────────────────────────────────
+bestScore = parseInt(localStorage.getItem('wr_best')||'0');
+bestScoreEl.textContent = 'Best: ' + bestScore;
+playerName = localStorage.getItem('wr_name') || '';
+
+// ── Initial background draw ──────────────────────────────────────
+drawBg(); drawGround();
+</script>
+</body>
+</html>
